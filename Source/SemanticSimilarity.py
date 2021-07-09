@@ -33,7 +33,7 @@ Slot1 = "lezen van muziek-noten"                                # g, Should be: 
 Slot2 = None
 Slot3 = "12-jarige hoger IQ"                                    # g, Should be: 5
 Slot4 = "betere vaardigheden als wiskundige breuken berekenen"  # g, Should be: 3
-Slot5 = "ophalen van herinneringen"                             # g, SHould be: 4
+Slot5 = "ophalen van herinneringen"                             # g, Should be: 4
 
 # Load model answers and throw away those we don't need
 modelAnswers = pd.read_csv(MODEL_FILE, sep=';', index_col='TextName')
@@ -46,28 +46,32 @@ MostSimilarModelAnswer = { 1: (None, None), 2: (None, None), 3: (None, None), 4:
 Slots = [Slot1, Slot2, Slot3, Slot4, Slot5]
 Slots = list(map(lambda slotText: TrimText(slotText) if slotText is not None else slotText, Slots))
 
-for slotIndex, text in Slots:
-    # Process the student answer
-    studentAnswerProjection = nlp(text)
+slotIndex = 0
+for text in Slots:
+    if text is not None:
+        studentAnswerProjection = nlp(text)  # Process the student answer
 
-    for modelAnswerIndex, modelAnswer in modelAnswers:
-        modelAnswer = TrimText(modelAnswer)
-        modelAnswerProjection = nlp(modelAnswer)
+        modelAnswerIndex = 0
+        for modelAnswer in modelAnswers:
+            modelAnswer = TrimText(modelAnswer)
+            modelAnswerProjection = nlp(modelAnswer)
 
-        sem_sim, oov = get_similarity(studentAnswerProjection, modelAnswerProjection)
-        if sem_sim is not None:
-            slotNumber = slotIndex + 1
-            modelAnswerNumber = modelAnswerIndex + 1
+            sem_sim, oov = get_similarity(studentAnswerProjection, modelAnswerProjection)
+            if sem_sim is not None:
+                slotNumber = slotIndex + 1
+                modelAnswerNumber = modelAnswerIndex + 1
 
-            (field, similarity) = MostSimilarModelAnswer[slotNumber]
-            if field is None or similarity is None:
-                MostSimilarModelAnswer[slotNumber] = (modelAnswerNumber, sem_sim)
-            elif sem_sim > MostSimilarModelAnswer[slotNumber]:
-                MostSimilarModelAnswer[slotNumber] = sem_sim if sem_sim <= 1 else 1
-            #else:  # TODO: Figure out what to do with this case
-                #OOV_list.append(oov)
-                #sem_sim_2save = 'OOV'  # out of vocabulary
+                (field, similarity) = MostSimilarModelAnswer[slotNumber]
+                if field is None or similarity is None:
+                    MostSimilarModelAnswer[slotNumber] = (modelAnswerNumber, sem_sim)
+                elif sem_sim > similarity:
+                    MostSimilarModelAnswer[slotNumber] = (modelAnswerNumber, sem_sim if sem_sim <= 1 else 1)
+                #else:  # TODO: Figure out what to do with this case
+                    #OOV_list.append(oov)
+                    #sem_sim_2save = 'OOV'  # out of vocabulary
 
+            modelAnswerIndex += 1
 
-print()
+    slotIndex += 1
 
+print(MostSimilarModelAnswer)
