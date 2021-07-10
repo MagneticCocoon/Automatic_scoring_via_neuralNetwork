@@ -2,6 +2,8 @@
 import pandas as pd
 import spacy
 
+TASK_LIST = ["Beton", "Botox", "Geld", "Metro", "Muziek", "Suez"]
+
 def TrimText(txt: str):
     """ Converts a string to lower case and removes new lines. """
     return txt.lower().replace("\r", " ").replace("\n", " ")
@@ -37,7 +39,6 @@ Slot5 = "ophalen van herinneringen"                             # g, Should be: 
 
 # Load model answers and throw away those we don't need
 modelAnswers = pd.read_csv(MODEL_FILE, sep=';', index_col='TextName')
-modelAnswers = modelAnswers.loc[Task]
 
 # Dictionary mapping slot number to a pair: ("Most similar model answer", "Similarity")
 MostSimilarModelAnswer = { 1: (None, None), 2: (None, None), 3: (None, None), 4: (None, None), 5: (None, None) }
@@ -47,22 +48,22 @@ Slots = [Slot1, Slot2, Slot3, Slot4, Slot5]
 Slots = list(map(lambda slotText: TrimText(slotText) if slotText is not None else slotText, Slots))
 
 
-def FindMostSimilarModelAnswer(studentAnswerNlp):
+def FindMostSimilarModelAnswer(studentAnswerNlp, task):
     """ Given a student answer, processed by spacy, find the most similar model answer.
         Output: tuple of (modelAnswer: integer, similarity: number) """
     MostSimilarAnswer = None
     Similarity = 0
 
-    modelAnswerIndex = 0
-    for modelAnswer in modelAnswers:
+    if task not in TASK_LIST:
+        raise ValueError("Error: could not recognize task: " + task)
+
+    modelAnswerNumber = 1
+    for modelAnswer in modelAnswers.loc[task]:
         modelAnswer = TrimText(modelAnswer)
         modelAnswerProjection = nlp(modelAnswer)
 
-        sem_sim, oov = get_similarity(studentAnswerProjection, modelAnswerProjection)
+        sem_sim, oov = get_similarity(studentAnswerNlp, modelAnswerProjection)
         if sem_sim is not None:
-            slotNumber = slotIndex + 1
-            modelAnswerNumber = modelAnswerIndex + 1
-
             (field, similarity) = (MostSimilarAnswer, Similarity)
             if field is None or similarity is None:
                 (MostSimilarAnswer, Similarity) = (modelAnswerNumber, sem_sim)
@@ -72,16 +73,17 @@ def FindMostSimilarModelAnswer(studentAnswerNlp):
             # OOV_list.append(oov)
             # sem_sim_2save = 'OOV'  # out of vocabulary
 
-        modelAnswerIndex += 1
+        modelAnswerNumber += 1
 
     return (MostSimilarAnswer, Similarity)
 
 
-slotIndex = 0
-for text in Slots:
-    if text is not None:
-        studentAnswerProjection = nlp(text)  # Process the student answer
-        MostSimilarModelAnswer[slotIndex + 1] = FindMostSimilarModelAnswer(studentAnswerProjection)
-    slotIndex += 1
+if __name__ == "__main__":
+    slotNumber = 1
+    for text in Slots:
+        if text is not None:
+            studentAnswerProjection = nlp(text)  # Process the student answer
+            MostSimilarModelAnswer[slotNumber] = FindMostSimilarModelAnswer(studentAnswerProjection, Task)
+        slotNumber += 1
 
-print(MostSimilarModelAnswer)
+    print(MostSimilarModelAnswer)
