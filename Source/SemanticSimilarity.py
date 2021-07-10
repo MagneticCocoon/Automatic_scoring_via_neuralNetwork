@@ -22,7 +22,7 @@ def get_similarity(sample_doc, model_doc):
     return sem_sim, oov
 
 
-MODEL_FILE = 'model_answers.csv'
+MODEL_FILE = 'Data/model_answers.csv'
 
 nlp = spacy.load("nl_core_news_md")
 
@@ -46,32 +46,42 @@ MostSimilarModelAnswer = { 1: (None, None), 2: (None, None), 3: (None, None), 4:
 Slots = [Slot1, Slot2, Slot3, Slot4, Slot5]
 Slots = list(map(lambda slotText: TrimText(slotText) if slotText is not None else slotText, Slots))
 
+
+def FindMostSimilarModelAnswer(studentAnswerNlp):
+    """ Given a student answer, processed by spacy, find the most similar model answer.
+        Output: tuple of (modelAnswer: integer, similarity: number) """
+    MostSimilarAnswer = None
+    Similarity = 0
+
+    modelAnswerIndex = 0
+    for modelAnswer in modelAnswers:
+        modelAnswer = TrimText(modelAnswer)
+        modelAnswerProjection = nlp(modelAnswer)
+
+        sem_sim, oov = get_similarity(studentAnswerProjection, modelAnswerProjection)
+        if sem_sim is not None:
+            slotNumber = slotIndex + 1
+            modelAnswerNumber = modelAnswerIndex + 1
+
+            (field, similarity) = (MostSimilarAnswer, Similarity)
+            if field is None or similarity is None:
+                (MostSimilarAnswer, Similarity) = (modelAnswerNumber, sem_sim)
+            elif sem_sim > similarity:
+                (MostSimilarAnswer, Similarity) = (modelAnswerNumber, sem_sim if sem_sim <= 1 else 1)
+            # else:  # TODO: Figure out what to do with this case
+            # OOV_list.append(oov)
+            # sem_sim_2save = 'OOV'  # out of vocabulary
+
+        modelAnswerIndex += 1
+
+    return (MostSimilarAnswer, Similarity)
+
+
 slotIndex = 0
 for text in Slots:
     if text is not None:
         studentAnswerProjection = nlp(text)  # Process the student answer
-
-        modelAnswerIndex = 0
-        for modelAnswer in modelAnswers:
-            modelAnswer = TrimText(modelAnswer)
-            modelAnswerProjection = nlp(modelAnswer)
-
-            sem_sim, oov = get_similarity(studentAnswerProjection, modelAnswerProjection)
-            if sem_sim is not None:
-                slotNumber = slotIndex + 1
-                modelAnswerNumber = modelAnswerIndex + 1
-
-                (field, similarity) = MostSimilarModelAnswer[slotNumber]
-                if field is None or similarity is None:
-                    MostSimilarModelAnswer[slotNumber] = (modelAnswerNumber, sem_sim)
-                elif sem_sim > similarity:
-                    MostSimilarModelAnswer[slotNumber] = (modelAnswerNumber, sem_sim if sem_sim <= 1 else 1)
-                #else:  # TODO: Figure out what to do with this case
-                    #OOV_list.append(oov)
-                    #sem_sim_2save = 'OOV'  # out of vocabulary
-
-            modelAnswerIndex += 1
-
+        MostSimilarModelAnswer[slotIndex + 1] = FindMostSimilarModelAnswer(studentAnswerProjection)
     slotIndex += 1
 
 print(MostSimilarModelAnswer)
